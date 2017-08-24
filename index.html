@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <canvas id="canvas" height="400" width="400"></canvas>
+  <script src="dist/bundle.js"></script>
+  <script>
+    const world = window.generate(20, 20, 25, 25, 0.35);
+
+    window.world = world;
+
+    // world.debug(0);
+    // world.debug(5);
+    // world.debug(9);
+    // world.debug(40);
+    // world.debug(45);
+    // world.debug(49);
+    // world.debug(90);
+    // world.debug(95);
+    // world.debug(99);
+
+    const stateHelper = (cell, neighbors) => {
+      const aliveNeighbors = neighbors.filter(cell => cell.type.value);
+      if (neighbors.length < 8) {
+        return 1;
+      }
+
+      if (aliveNeighbors.length > 4) {
+        return 1;
+      }
+
+      if (aliveNeighbors.length < 3) {
+        return 0;
+      }
+
+      return cell.type.value;
+    }
+
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+
+    const count = 0;
+    const limit = 9;
+    const timeout = 250;
+
+    function generation(count, limit) {
+      world.step(stateHelper);
+
+      count++;
+
+      if (count <= limit) {
+        setTimeout(function() {
+          generation(count, limit);
+        }, timeout);
+      }
+    }
+
+    setTimeout(function() {
+      generation(count, limit);
+    }, timeout);
+
+  </script>
+</body>
+</html>
