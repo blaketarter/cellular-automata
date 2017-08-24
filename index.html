@@ -25,8 +25,10 @@
     // world.debug(99);
 
     const stateHelper = (cell, neighbors) => {
-      const aliveNeighbors = neighbors.filter(cell => cell.type.value);
-      if (neighbors.length < 8) {
+      const existingNeighbors = neighbors.filter(cell => cell);
+      const aliveNeighbors = existingNeighbors.filter(cell => cell.type.value);
+
+      if (existingNeighbors.length < 8) {
         return 1;
       }
 
@@ -36,6 +38,60 @@
 
       if (aliveNeighbors.length < 3) {
         return 0;
+      }
+
+      return cell.type.value;
+    }
+
+    const waterHelper = (cell, neighbors) => {
+      if (cell.type.value === 1) { return cell.type.value; };
+      const existingNeighbors = neighbors.filter(cell => cell); // if Im rock, do nothing
+      const aliveNeighbors = neighbors.filter(cell => cell.type.value);
+
+      switch (cell.type.value) {
+        case 0: // air
+          if (neighbors[1].type.value === 2) { // water above
+            return 2;
+          }
+
+          // if (neighbors[5].type.value !== 0) { // water or rock below
+          //   if (neighbors[7].type.value === 2) { // water to the left
+          //     return 2;
+          //   } else if (neighbors[3].type.value === 2) { // water to the right
+          //     return 2;
+          //   }
+          // }
+
+          if (neighbors[0].type.value === 2 || neighbors[2].type.value === 2) { // water to top left or top right, become water
+            return 2;
+          }
+          break;
+        case 2: // water
+          if (neighbors[1].type.value === 1 && neighbors[5].type.value !== 1) { // rock above and not below
+            return 0;
+          }
+
+          if (neighbors[1].type.value !== 1 && neighbors[5].type.value === 0) { // as long as there is no cave above and air below, take its state
+            return neighbors[1].type.value;
+          }
+
+          // water below and air to the left, top, and right
+          // if (neighbors[1].type.value === 0 && neighbors[3].type.value === 0 && neighbors[7].type.value === 0 && neighbors[5].type.value === 2) {
+          //   return 0; // turn into air (to "settle")
+          // }
+
+          // if (neighbors[5].type.value === 1 && neighbors[1].type.value !== 1) { // rock below and not rock above
+          //   if (neighbors[7].type.value === 0) { // air to the left
+          //     return neighbors[1].type.value;
+          //   } else if (neighbors[3].type.value === 0) { // air to the right
+          //     return neighbors[1].type.value;
+          //   }
+          // }
+
+          if (neighbors[4].type.value === 0 || neighbors[6].type.value === 0) { // air to bottom left or bottom right
+            return 0;
+          }
+          break;
       }
 
       return cell.type.value;
@@ -52,20 +108,31 @@
     const limit = 9;
     const timeout = 250;
 
-    function generation(count, limit) {
-      world.step(stateHelper);
+    function generation(worldInstance, count, limit, stepHelper, cb) {
+      worldInstance.step(stepHelper);
 
       count++;
 
       if (count <= limit) {
         setTimeout(function() {
-          generation(count, limit);
+          generation(worldInstance, count, limit, stepHelper, cb);
         }, timeout);
+      } else {
+        cb(worldInstance);
       }
     }
 
     setTimeout(function() {
-      generation(count, limit);
+      generation(world, count, limit, stateHelper, function(newWorld) {
+        const caveCells = world.stripMeta();
+        const waterWorld = window.generate(20, 20, 25, 25, 0.35, caveCells, 0, 2);
+
+        setTimeout(function() {
+          generation(waterWorld, 0, 30, waterHelper, function(newWaterWorld) {
+            console.log(newWaterWorld);
+          });
+        }, 500);
+      });
     }, timeout);
 
   </script>

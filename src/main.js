@@ -4,6 +4,7 @@ let ctx;
 const CELL_TYPES = {
   0: 'DEAD',
   1: 'ALIVE',
+  2: 'WATER',
 };
 
 const CELLS = {
@@ -14,6 +15,10 @@ const CELLS = {
   ALIVE: {
     value: 1,
     color: '#111111',
+  },
+  WATER: {
+    value: 2,
+    color: '#4f8fff'
   }
 };
 
@@ -54,7 +59,11 @@ function addMetaToMap(cells, metaFn, rows, columns) {
   return cells.map((type, index) => metaFn(type, index, rows, columns));
 }
 
-function initCells(rows, columns) {
+function initCells(rows, columns, initialCells = []) {
+  if (initialCells.length) {
+    return initialCells.slice();
+  }
+
   const cells = [];
 
   for (let r = 0; r < rows; r++) {
@@ -110,20 +119,24 @@ function renderCells(cells, rows, columns, cellHeight, cellWidth) {
   });
 }
 
-function fillCells(rows, columns, fillPercent = 0.5) {
-  const cells = [];
+// cells, rows, columns, fillPercent, cellTypeToReplace, cellTypeToFill
+function fillCells(cells, fillPercent = 0.5, cellTypeToReplace = 0, cellTypeToFill = 1) {
+  const newCells = [];
   
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < columns; c++) {
-        if (Math.random() <= fillPercent) {
-          cells.push(1);
-        } else {
-          cells.push(0);
-        }
-      }
+  for (let i = 0, ii = cells.length; i < ii; i++) {
+    if (cells[i] !== cellTypeToReplace) {
+      newCells.push(cells[i]);
+      continue;
     }
-  
-  return cells;
+
+    if (Math.random() <= fillPercent) {
+      newCells.push(cellTypeToFill);
+    } else {
+      newCells.push(cells[i]);
+    }
+  }
+
+  return newCells;
 }
 
 function drawLine(fromIndex, toIndex, columns, rows, cellHeight, cellWidth, color) {
@@ -155,6 +168,7 @@ function drawLine(fromIndex, toIndex, columns, rows, cellHeight, cellWidth, colo
 }
 
 function getNeighbors(index, cells, rows, columns) {
+  //     0      1       2        3          4         5          6         7
   // [top-left, top, top-right, right, bottom-right, bottom, bottom-left, left]
   const neighbors = [];
   const [column, row] = getRowColumn(index, columns, rows);
@@ -178,11 +192,17 @@ function getNeighbors(index, cells, rows, columns) {
 
     if (topLeftCell) { // make sure there really is a topLeftCell before pushing it
       neighbors.push(topLeftCell);
+    } else {
+      neighbors.push(undefined);
     }
+  } else {
+    neighbors.push(undefined);
   }
 
   if (topCell) {
     neighbors.push(topCell);
+  } else {
+    neighbors.push(undefined);
   }
 
   if (column !== columns - 1) { // probably has a right cell
@@ -194,11 +214,17 @@ function getNeighbors(index, cells, rows, columns) {
 
     if (topRightCell) { // make sure there really is a topRightCell before pushing it
       neighbors.push(topRightCell);
+    } else {
+      neighbors.push(undefined);
     }
+  } else {
+    neighbors.push(undefined);
   }
 
   if (rightCell) {
     neighbors.push(rightCell);
+  } else {
+    neighbors.push(undefined);
   }
 
   if (rightCell && bottomCell) { // if there is a rightCell and a bottomCell there is probably a bottomRightCell
@@ -206,11 +232,17 @@ function getNeighbors(index, cells, rows, columns) {
 
     if (bottomRightCell) { // make sure there really is a bottomRightCell before pushing it
       neighbors.push(bottomRightCell);
+    } else {
+      neighbors.push(undefined);
     }
+  } else {
+    neighbors.push(undefined);
   }
 
   if (bottomCell) {
     neighbors.push(bottomCell);
+  } else {
+    neighbors.push(undefined);
   }
 
   if (leftCell && bottomCell) { // if there is a leftCell and a bottomCell there is probably a bottomLeftCell
@@ -218,39 +250,54 @@ function getNeighbors(index, cells, rows, columns) {
 
     if (bottomLeftCell) {
       neighbors.push(bottomLeftCell);
+    } else {
+      neighbors.push(undefined);
     }
+  } else {
+    neighbors.push(undefined);
   }
 
   if (leftCell) {
     neighbors.push(leftCell);
+  } else {
+    neighbors.push(undefined);
   }
 
   return neighbors;
 }
 
-export default function genenerate(columns = 10, rows = 10, cellHeight = 50, cellWidth = 50, fillPercent = 0.5) {
+export default function genenerate(columns = 10, rows = 10, cellHeight = 50, cellWidth = 50, fillPercent = 0.5, initialCells = [], cellTypeToReplace = 0, cellTypeToFill = 1) {
   const MAP = initMap(rows, columns, cellHeight, cellWidth);
   ctx = initCanvas(canvas, MAP.height, MAP.width)
 
-  let cells = cellsWithMeta(initCells(rows, columns), columns, rows);
+  let cells = initCells(rows, columns, initialCells);
 
   ctx.fillStyle = 'black';
   ctx.fillRect(0, 0, canvas.height, canvas.width);
 
-  cells = cellsWithMeta(fillCells(rows, columns, fillPercent), rows, columns);
+  cells = cellsWithMeta(fillCells(cells, fillPercent, cellTypeToReplace, cellTypeToFill), rows, columns);
   
   renderCells(cells, rows, columns, MAP.cellHeight, MAP.cellWidth);
 
   console.log(MAP);
   console.log(cells);
 
-  const neighbors = getNeighbors
-
   // drawLine(5, 6, columns, rows, MAP.cellHeight, MAP.cellWidth, 'white');
 
   return {
     MAP,
     cells,
+    stripMeta: () => {
+      const newCells = [];
+
+      for (let i = 0, ii = cells.length; i < ii; i++) {
+        newCells.push(cells[i].type.value);
+      }
+
+      cells = newCells;
+
+      return newCells;
+    },
     step: (stateDecider) => {
       cells = cells.map((cell) => {
         const newState = stateDecider(cell, getNeighbors(cell.index, cells, rows, columns));
