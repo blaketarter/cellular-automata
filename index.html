@@ -1,16 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Document</title>
 </head>
+
 <body>
   <canvas id="canvas" height="400" width="400"></canvas>
   <script src="dist/bundle.js"></script>
   <script>
-    const world = window.generate(20, 20, 25, 25, 0.35);
+    const helper = {
+      chain: function(c) {
+        return {
+          cell: function() { return c; },
+          isType: (type) => {
+            return this.isType(c, type);
+          },
+          isOneOfTypes: (types) => {
+            return this.isOneOfTypes(c, types);
+          }
+        };
+      },
+
+      topLeft: function(neighbors) {
+        return this.chain(neighbors[0]);
+      },
+
+      top: function(neighbors) {
+        return this.chain(neighbors[1]);
+      },
+
+      topRight: function(neighbors) {
+        return this.chain(neighbors[2]);
+      },
+
+      right: function(neighbors) {
+        return this.chain(neighbors[3]);
+      },
+
+      bottomRight: function(neighbors) {
+        return this.chain(neighbors[4]);
+      },
+
+      bottom: function(neighbors) {
+        return this.chain(neighbors[5]);
+      },
+
+      bottomLeft: function(neighbors) {
+        return this.chain(neighbors[6]);
+      },
+
+      left: function(neighbors) {
+        return this.chain(neighbors[7]);
+      },
+
+      isType: function(cell, typeValue) {
+        return cell.type.value === typeValue;
+      },
+
+      isOneOfTypes: function(cell, types) {
+        return types.indexOf(cell.type.value >= 0);
+      }
+    };
+
+    const world = window.generate(50, 50, 10, 10, 0.37);
 
     window.world = world;
 
@@ -44,53 +100,59 @@
     }
 
     const waterHelper = (cell, neighbors) => {
-      if (cell.type.value === 1) { return cell.type.value; };
-      const existingNeighbors = neighbors.filter(cell => cell); // if Im rock, do nothing
+      if (cell.type.value === 1) { return cell.type.value; }; // if Im rock, do nothing
+
+      const existingNeighbors = neighbors.filter(cell => cell);
       const aliveNeighbors = neighbors.filter(cell => cell.type.value);
 
       switch (cell.type.value) {
         case 0: // air
-          if (neighbors[1].type.value === 2) { // water above
+
+          // move water from above to me
+          if (helper.top(neighbors).isType(2)) {
             return 2;
           }
 
-          // if (neighbors[5].type.value !== 0) { // water or rock below
-          //   if (neighbors[7].type.value === 2) { // water to the left
-          //     return 2;
-          //   } else if (neighbors[3].type.value === 2) { // water to the right
-          //     return 2;
-          //   }
-          // }
+          // im below a ledge where water should overflow
+          if (helper.right(neighbors).isType(1) || helper.left(neighbors).isType(1)) {
+            if (helper.topRight(neighbors).isType(2) || helper.topLeft(neighbors).isType(2)) {
+              return 2;
+            }
+          }
 
-          if (neighbors[0].type.value === 2 || neighbors[2].type.value === 2) { // water to top left or top right, become water
-            return 2;
+          // level out the water
+          if (helper.bottom(neighbors).isOneOfTypes([1, 2])) {
+            if (
+              (helper.right(neighbors).isType(2) && helper.topRight(neighbors).isType(2)) ||
+              (helper.left(neighbors).isType(2) && helper.topLeft(neighbors).isType(2))
+            ) {
+              return 2;
+            }
           }
           break;
         case 2: // water
-          if (neighbors[1].type.value === 1 && neighbors[5].type.value !== 1) { // rock above and not below
+          // im falling down
+          if (helper.bottom(neighbors).isType(0)) {
             return 0;
           }
 
-          if (neighbors[1].type.value !== 1 && neighbors[5].type.value === 0) { // as long as there is no cave above and air below, take its state
-            return neighbors[1].type.value;
+          // water flowing over edge
+          if (helper.bottom(neighbors).isType(1)) {
+            if (helper.bottomRight(neighbors).isType(0) || helper.bottomLeft(neighbors).isType(0)) {
+              return 0;
+            }
           }
 
-          // water below and air to the left, top, and right
-          // if (neighbors[1].type.value === 0 && neighbors[3].type.value === 0 && neighbors[7].type.value === 0 && neighbors[5].type.value === 2) {
-          //   return 0; // turn into air (to "settle")
-          // }
-
-          // if (neighbors[5].type.value === 1 && neighbors[1].type.value !== 1) { // rock below and not rock above
-          //   if (neighbors[7].type.value === 0) { // air to the left
-          //     return neighbors[1].type.value;
-          //   } else if (neighbors[3].type.value === 0) { // air to the right
-          //     return neighbors[1].type.value;
-          //   }
-          // }
-
-          if (neighbors[4].type.value === 0 || neighbors[6].type.value === 0) { // air to bottom left or bottom right
-            return 0;
+          // water leveling out
+          if (helper.bottom(neighbors).isOneOfTypes([1, 2])) {
+            if (helper.top(neighbors).isType(2)) {
+              if (helper.right(neighbors).isType(0) || helper.left(neighbors).isType(0)) {
+                return 0;
+              }
+            }
           }
+
+          //
           break;
       }
 
@@ -105,8 +167,8 @@
     // world.step(stateHelper);
 
     const count = 0;
-    const limit = 9;
-    const timeout = 250;
+    const limit = 15;
+    const timeout = 50;
 
     function generation(worldInstance, count, limit, stepHelper, cb) {
       worldInstance.step(stepHelper);
@@ -125,16 +187,16 @@
     setTimeout(function() {
       generation(world, count, limit, stateHelper, function(newWorld) {
         const caveCells = world.stripMeta();
-        const waterWorld = window.generate(20, 20, 25, 25, 0.35, caveCells, 0, 2);
+        const waterWorld = window.generate(50, 50, 10, 10, 0.35, caveCells, 0, 2);
 
         setTimeout(function() {
-          generation(waterWorld, 0, 30, waterHelper, function(newWaterWorld) {
+          generation(waterWorld, 0, 100, waterHelper, function(newWaterWorld) {
             console.log(newWaterWorld);
           });
         }, 500);
       });
     }, timeout);
-
   </script>
 </body>
+
 </html>
