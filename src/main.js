@@ -1,3 +1,6 @@
+import { World } from './world';
+import { GameMap } from './render';
+
 const canvas = document.getElementById('canvas');
 let ctx;
 
@@ -21,20 +24,6 @@ const CELLS = {
     color: '#4f8fff',
   },
 };
-
-function getRowColumn(index, columns, rows) {
-  const column = index % columns;
-  const row = Math.floor((index - column) / columns);
-
-  return [column, row];
-}
-
-function getXY(column, row, cellHeight, cellWidth) {
-  return [
-    column * cellWidth + cellWidth / 2,
-    row * cellHeight + cellHeight / 2,
-  ];
-}
 
 function initCanvas(canvasEle, height, width) {
   const context = canvasEle.getContext('2d');
@@ -311,7 +300,7 @@ function getNeighbors(index, cells, rows, columns) {
   return neighbors;
 }
 
-export default function genenerate(
+function genenerate(
   columns = 10,
   rows = 10,
   cellHeight = 50,
@@ -404,3 +393,8 @@ export default function genenerate(
     },
   };
 }
+
+export default {
+  World,
+  GameMap,
+};

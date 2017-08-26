@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+
+<body>
+  <canvas id="canvas" height="400" width="400"></canvas>
+  <script src="dist/bundle.js"></script>
+  <script>
+    const helper = {
+      chain: function(c) {
+        return {
+          cell: function() { return c; },
+          isType: (type) => {
+            return this.isType(c, type);
+          },
+          isOneOfTypes: (types) => {
+            return this.isOneOfTypes(c, types);
+          }
+        };
+      },
+
+      topLeft: function(neighbors) {
+        return this.chain(neighbors[0]);
+      },
+
+      top: function(neighbors) {
+        return this.chain(neighbors[1]);
+      },
+
+      topRight: function(neighbors) {
+        return this.chain(neighbors[2]);
+      },
+
+      right: function(neighbors) {
+        return this.chain(neighbors[3]);
+      },
+
+      bottomRight: function(neighbors) {
+        return this.chain(neighbors[4]);
+      },
+
+      bottom: function(neighbors) {
+        return this.chain(neighbors[5]);
+      },
+
+      bottomLeft: function(neighbors) {
+        return this.chain(neighbors[6]);
+      },
+
+      left: function(neighbors) {
+        return this.chain(neighbors[7]);
+      },
+
+      isType: function(cell, typeValue) {
+        return cell.type.value === typeValue;
+      },
+
+      isOneOfTypes: function(cell, types) {
+        return types.indexOf(cell.type.value >= 0);
+      }
+    };
+
+    const world = window.generate(50, 50, 10, 10, 0.37);
+
+    window.world = world;
+
+    // world.debug(0);
+    // world.debug(5);
+    // world.debug(9);
+    // world.debug(40);
+    // world.debug(45);
+    // world.debug(49);
+    // world.debug(90);
+    // world.debug(95);
+    // world.debug(99);
+
+    const stateHelper = (cell, neighbors) => {
+      const existingNeighbors = neighbors.filter(cell => cell);
+      const aliveNeighbors = existingNeighbors.filter(cell => cell.type.value);
+
+      if (existingNeighbors.length < 8) {
+        return 1;
+      }
+
+      if (aliveNeighbors.length > 4) {
+        return 1;
+      }
+
+      if (aliveNeighbors.length < 3) {
+        return 0;
+      }
+
+      return cell.type.value;
+    }
+
+    const waterHelper = (cell, neighbors) => {
+      if (cell.type.value === 1) { return cell.type.value; }; // if Im rock, do nothing
+
+      const existingNeighbors = neighbors.filter(cell => cell);
+      const aliveNeighbors = neighbors.filter(cell => cell.type.value);
+
+      switch (cell.type.value) {
+        case 0: // air
+
+          // move water from above to me
+          if (helper.top(neighbors).isType(2)) {
+            return 2;
+          }
+
+          // im below a ledge where water should overflow
+          if (helper.right(neighbors).isType(1) || helper.left(neighbors).isType(1)) {
+            if (helper.topRight(neighbors).isType(2) || helper.topLeft(neighbors).isType(2)) {
+              return 2;
+            }
+          }
+
+          // level out the water
+          if (helper.bottom(neighbors).isOneOfTypes([1, 2])) {
+            if (
+              (helper.right(neighbors).isType(2) && helper.topRight(neighbors).isType(2)) ||
+              (helper.left(neighbors).isType(2) && helper.topLeft(neighbors).isType(2))
+            ) {
+              return 2;
+            }
+          }
+          break;
+        case 2: // water
+          // im falling down
+          if (helper.bottom(neighbors).isType(0)) {
+            return 0;
+          }
+
+          // water flowing over edge
+          if (helper.bottom(neighbors).isType(1)) {
+            if (helper.bottomRight(neighbors).isType(0) || helper.bottomLeft(neighbors).isType(0)) {
+              return 0;
+            }
+          }
+
+          // water leveling out
+          if (helper.bottom(neighbors).isOneOfTypes([1, 2])) {
+            if (helper.top(neighbors).isType(2)) {
+              if (helper.right(neighbors).isType(0) || helper.left(neighbors).isType(0)) {
+                return 0;
+              }
+            }
+          }
+
+          //
+          break;
+      }
+
+      return cell.type.value;
+    }
+
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+    // world.step(stateHelper);
+
+    const count = 0;
+    const limit = 15;
+    const timeout = 50;
+
+    function generation(worldInstance, count, limit, stepHelper, cb) {
+      worldInstance.step(stepHelper);
+
+      count++;
+
+      if (count <= limit) {
+        setTimeout(function() {
+          generation(worldInstance, count, limit, stepHelper, cb);
+        }, timeout);
+      } else {
+        cb(worldInstance);
+      }
+    }
+
+    setTimeout(function() {
+      generation(world, count, limit, stateHelper, function(newWorld) {
+        const caveCells = world.stripMeta();
+        const waterWorld = window.generate(50, 50, 10, 10, 0.35, caveCells, 0, 2);
+
+        setTimeout(function() {
+          generation(waterWorld, 0, 100, waterHelper, function(newWaterWorld) {
+            console.log(newWaterWorld);
+          });
+        }, 500);
+      });
+    }, timeout);
+  </script>
+</body>
+
+</html>
