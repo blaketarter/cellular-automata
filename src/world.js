@@ -175,16 +175,45 @@ function getAgentFromProbablity(agents = {}, distributions = []) {
   return mostSpecificAgent;
 }
 
+function getReplacementAgentFromProbablity(
+  agentToTest,
+  agents = {},
+  distributions = [],
+) {
+  const rand = Math.random();
+  let mostSpecificAgent = null;
+  let mostSpecificDistribution = { value: 2 };
+
+  for (let distribution of distributions) {
+    const agent = agents[distribution.type];
+
+    if (
+      distribution.match(agentToTest) &&
+      rand <= distribution.value &&
+      distribution.value < mostSpecificDistribution.value
+    ) {
+      mostSpecificAgent = { ...agent, ...distribution.state };
+      mostSpecificDistribution = distribution;
+    }
+  }
+
+  if (!mostSpecificAgent) {
+    return agentToTest;
+  }
+
+  return mostSpecificAgent;
+}
+
 export class World {
   constructor({ rows, columns }) {
     this.rows = rows;
     this.columns = columns;
 
     this.cells = initCells(rows, columns);
-    this.agents = [];
-    this.rules = [];
     this.agents = {};
+    this.rules = [];
     this.distributions = [];
+    this.replaceDistributions = [];
   }
 
   addRule(ruleFn) {
@@ -206,16 +235,21 @@ export class World {
       [agentName]: {
         type: agentName,
         ...meta,
-        chanceOfAppearing: 0,
-        distribution: 0,
       },
     };
   }
 
   fillWithDistribution(agentDistributions = []) {
     let chanceLeft = 1;
+    let totalChance = 0;
 
     for (let distribution of agentDistributions) {
+      if (!this.agents[distribution.agent]) {
+        console.warn(
+          `No agent [${distribution.agent}] found, cannot fill with it.`,
+        );
+      }
+
       this.distributions.push({
         type: distribution.agent,
         chanceOfAppearing: distribution.chance,
@@ -224,18 +258,50 @@ export class World {
       });
 
       chanceLeft -= distribution.chance;
+      totalChance += distribution.chance;
     }
 
-    this.agents = this.cells.map(cell => {
+    if (totalChance !== 1) {
+      console.warn(
+        'If the chance of all of the distributions does not sum to 1 fillWithDistribution will not work.',
+      );
+    }
+
+    this.cells = this.cells.map(cell => {
       return getAgentFromProbablity(this.agents, this.distributions);
     });
   }
 
+  replaceWithDistribution(replaceDistributions = []) {
+    for (let distribution of replaceDistributions) {
+      if (!this.agents[distribution.agent]) {
+        console.warn(
+          `No agent [${distribution.agent}] found, cannot replace with it.`,
+        );
+      }
+
+      this.replaceDistributions.push({
+        match: distribution.match,
+        type: distribution.agent,
+        value: distribution.chance,
+        state: distribution.state ? distribution.state : {},
+      });
+    }
+
+    this.cells = this.cells.map(agent => {
+      return getReplacementAgentFromProbablity(
+        agent,
+        this.agents,
+        this.replaceDistributions,
+      );
+    });
+  }
+
   step() {
-    this.agents = this.agents.map((agent, index) => {
+    this.cells = this.cells.map((agent, index) => {
       return this.rules.reduce(
         (agent, ruleFn) =>
-          runRule(index, this.agents, this.rows, this.columns, ruleFn),
+          runRule(index, this.cells, this.rows, this.columns, ruleFn),
         agent,
       );
     });

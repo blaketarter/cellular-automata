@@ -21,6 +21,12 @@
       'rock': {
         color: '#000000',
       },
+      'water': {
+        color: '#3060ff'
+      },
+      'lava': {
+        color: '#FF4500'
+      }
     };
 
     const OPTIONS = {
@@ -28,6 +34,18 @@
       columns: 25,
       cellSize: 25,
     };
+
+    function generation(worldInstance, count, limit, stepCb, endCb, timeout) {
+      if (count <= limit) {
+        setTimeout(function() {
+          worldInstance.step();
+          stepCb(worldInstance);
+          generation(worldInstance, ++count, limit, stepCb, endCb, timeout);
+        }, timeout);
+      } else {
+        endCb(worldInstance);
+      }
+    }
 
     const world = new window.CA.World({
       rows: OPTIONS.rows,
@@ -40,6 +58,10 @@
     world.addRule((agent, neighbors) => {
       const existingNeighbors = neighbors.filter(agent => agent);
       const aliveNeighbors = existingNeighbors.filter(agent => agent.isAlive);
+
+      if (agent.type !== 'rock') {
+        return agent;
+      }
 
       if (existingNeighbors.length < 8) {
         return { ...agent, isAlive: true, };
@@ -69,26 +91,43 @@
     console.log(world);
 
     const map = new window.CA.GameMap(canvasEle);
-
-    // map.renderWorld(world, OPTIONS.cellSize, cell => {
-    //   if (cell.isAlive) {
-    //     return CELLS['rock'];
-    //   }
-
-    //   return CELLS['air'];
-    // });
-
-    world.delay(15);
-
-    map.renderWorld(world, OPTIONS.cellSize, cell => {
-      if (cell.isAlive) {
-        return CELLS['rock'];
-      }
-
-      return CELLS['air'];
-    });
-
     console.log(map);
+
+    function render() {
+      map.renderWorld(world, OPTIONS.cellSize, cell => {
+        switch (cell.type) {
+          case 'rock':
+            if (cell.isAlive) {
+              return CELLS['rock'];
+            }
+
+            return CELLS['air'];
+        }
+
+        if (CELLS[cell.type]) {
+          return CELLS[cell.type];
+        }
+      });
+    }
+
+    render();
+
+    generation(world, 0, 10, render, () => {
+      world.addAgent('water');
+      world.addAgent('lava');
+
+      world.replaceWithDistribution([{
+        agent: 'water',
+        match: (cell) => !cell.isAlive,
+        chance: 0.5,
+      }, {
+        agent: 'lava',
+        match: (cell) => cell.isAlive,
+        chance: 0.25,
+      }]);
+
+      render();
+    }, 250);
   </script>
 </body>
 

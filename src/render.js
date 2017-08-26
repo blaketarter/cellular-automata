@@ -90,7 +90,7 @@ export class GameMap {
 
     renderCells(
       this.context,
-      world.agents,
+      world.cells,
       this.rows,
       this.columns,
       this.cellSize,
