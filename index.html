@@ -114,19 +114,47 @@
 
     generation(world, 0, 10, render, () => {
       world.addAgent('water');
-      world.addAgent('lava');
+      // world.addAgent('lava');
+
+      world.addRule((agent, neighbors) => {
+        const existingNeighbors = neighbors.filter(agent => agent);
+        const aliveNeighbors = existingNeighbors.filter(agent => agent.isAlive);
+        const waterNeighbors = existingNeighbors.filter(agent => agent.type === 'water');
+
+        if (agent.type !== 'water') {
+          return agent;
+        }
+
+        if (waterNeighbors.length < 3) {
+          return { ...agent, type: 'rock', isAlive: false, };
+        }
+
+        return agent;
+      });
+
+      world.addRule((agent, neighbors) => {
+        const existingNeighbors = neighbors.filter(agent => agent);
+        const aliveNeighbors = existingNeighbors.filter(agent => agent.isAlive);
+        const waterNeighbors = existingNeighbors.filter(agent => agent.type === 'water');
+
+        if (agent.isAlive || agent.type === 'water') {
+          return agent;
+        }
+
+        if (waterNeighbors.length > 3) {
+          return { type: 'water' };
+        }
+
+        return agent;
+      });
 
       world.replaceWithDistribution([{
         agent: 'water',
         match: (cell) => !cell.isAlive,
-        chance: 0.5,
-      }, {
-        agent: 'lava',
-        match: (cell) => cell.isAlive,
         chance: 0.25,
       }]);
 
-      render();
+      generation(world, 0, 2, render, render, 250);
     }, 250);
   </script>
 </body>

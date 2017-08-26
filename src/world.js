@@ -148,8 +148,7 @@ function fillCells(
   return newCells;
 }
 
-function runRule(index, cells, rows, columns, ruleFn) {
-  const agent = cells[index];
+function runRule(agent, index, cells, rows, columns, ruleFn) {
   const neighbors = getNeighbors(index, cells, rows, columns);
 
   return { ...ruleFn(agent, neighbors) };
@@ -301,7 +300,7 @@ export class World {
     this.cells = this.cells.map((agent, index) => {
       return this.rules.reduce(
         (agent, ruleFn) =>
-          runRule(index, this.cells, this.rows, this.columns, ruleFn),
+          runRule(agent, index, this.cells, this.rows, this.columns, ruleFn),
         agent,
       );
     });
